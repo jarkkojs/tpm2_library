@@ -636,7 +636,7 @@ pub enum Session {
 /// `TPM_CAP`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u32)]
-pub enum TpmCap {
+pub enum Capability {
     /// `TPM_CAP_ALGS`
     Algs = 0x0000_0000,
     /// `TPM_CAP_HANDLES`
@@ -810,7 +810,7 @@ where
     cmd.extend((Tag::NoSessions as u16).to_be_bytes());
     cmd.extend((22_u32).to_be_bytes());
     cmd.extend((Command::GetCapability as u32).to_be_bytes());
-    cmd.extend((TpmCap::Handles as u32).to_be_bytes());
+    cmd.extend((Capability::Handles as u32).to_be_bytes());
     cmd.extend(property.to_be_bytes());
     cmd.extend(property_count.to_be_bytes());
     file.write_all(&cmd).or(Err(Error::InvalidWrite))?;
