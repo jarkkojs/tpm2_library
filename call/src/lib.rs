@@ -624,7 +624,7 @@ pub const CAP_VENDOR_PROPERTY: u32 = 0x0000_0100;
 /// `TPM_SE`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u8)]
-pub enum TpmSession {
+pub enum Session {
     /// `TPM_SE_HMAC`
     Hmac = 0x00,
     /// `TPM_SE_POLICY`
@@ -860,7 +860,7 @@ where
 /// * `Error::InvalidWrite`: write failed
 pub fn start_auth_session<T>(
     file: &mut T,
-    session_type: TpmSession,
+    session_type: Session,
     nonce_caller: &[u8; NONCE_SIZE as usize],
 ) -> Result<[u8; NONCE_SIZE as usize], Error>
 where
