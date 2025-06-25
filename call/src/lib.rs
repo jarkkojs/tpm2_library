@@ -13,7 +13,7 @@ use strum_macros::FromRepr;
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u16)]
 pub enum TpmAlg {
-    /// `TPM_AG_ERROR`
+    /// `TPM_ALG_ERROR`
     Error = 0x0000,
     /// `TPM_ALG_RSA`
     Rsa = 0x0001,
