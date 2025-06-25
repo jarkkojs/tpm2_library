@@ -96,11 +96,11 @@ pub const CC_LAST: u32 = 0x0000_0193;
 
 /// Enumeration of the `TPM_CC`values
 ///
-/// Values for `TPM_CC` are described in the section 6.5.2 of the TPM 2.0
-/// Structures specification.
+/// The possbile values for `TPM_CC` are described in the section 6.5.2 of the
+/// TPM 2.0 Structures specification.
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u32)]
-pub enum TpmCc {
+pub enum Command {
     /// `TPM_CC_NV_UndefineSpaceSpecial`
     NvUndefineSpaceSpecial = 0x0000_011F,
     /// `TPM_CC_EvictControl`
@@ -769,7 +769,7 @@ where
     let mut buf = vec![];
     buf.extend((TpmTag::NoSessions as u16).to_be_bytes());
     buf.extend((22_u32).to_be_bytes());
-    buf.extend((TpmCc::GetCapability as u32).to_be_bytes());
+    buf.extend((Command::GetCapability as u32).to_be_bytes());
     buf.extend((TpmCap::Handles as u32).to_be_bytes());
     buf.extend(property.to_be_bytes());
     buf.extend(property_count.to_be_bytes());
@@ -829,7 +829,7 @@ where
     let mut buf = vec![];
     buf.extend((TpmTag::NoSessions as u16).to_be_bytes());
     buf.extend((43_u32).to_be_bytes());
-    buf.extend((TpmCc::StartAuthSession as u32).to_be_bytes());
+    buf.extend((Command::StartAuthSession as u32).to_be_bytes());
     buf.extend((TpmHandle::Null as u32).to_be_bytes()); // bind
     buf.extend((TpmHandle::Null as u32).to_be_bytes()); // tpmKey
     buf.extend(NONCE_SIZE.to_be_bytes());
