@@ -343,9 +343,13 @@ pub const RC_VER1: u32 = 0x0100;
 pub const RC_FMT1: u32 = 0x0080;
 pub const RC_WARN: u32 = 0x0900;
 
+/// Enumeration of the `TPM_RC` values.
+///
+/// The possible values for `TPM_RC` are described in the section 6.6 of the
+/// TPM 2.0 Structures specification.
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u32)]
-pub enum TpmRc {
+pub enum Response {
     Success = 0x0000,
     BadTag = 0x001E,
     Initialize = RC_VER1,
@@ -446,12 +450,12 @@ pub enum TpmRc {
     NotUsed = RC_WARN + 0x07F,
 }
 
-impl From<u32> for TpmRc {
+impl From<u32> for Response {
     /// On success, parse `RsponseCode`.
     /// On failure, Return `TpmRc::NotUsed` (`TPM_RC_NOT_USED`) for any
     /// invald response code, as TPM chip should never return that back to the
     /// caller in any legit use case.
-    fn from(value: u32) -> TpmRc {
+    fn from(value: u32) -> Response {
         Self::from_repr(if value & RC_FMT1 != 0 {
             value & (0x3F + RC_FMT1)
         } else if value & RC_WARN != 0 {
@@ -462,11 +466,11 @@ impl From<u32> for TpmRc {
             // RC_VER0
             value & 0x7F
         })
-        .unwrap_or(TpmRc::NotUsed)
+        .unwrap_or(Response::NotUsed)
     }
 }
 
-impl fmt::Display for TpmRc {
+impl fmt::Display for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Success => write!(f, "TPM_RC_SUCCESS"),

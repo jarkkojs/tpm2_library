@@ -11,7 +11,7 @@ use std::{
     os::unix::fs::FileTypeExt,
     path::Path,
 };
-use tpm2_call::{get_capability, start_auth_session, TpmHandle, TpmRc, TpmSession};
+use tpm2_call::{get_capability, start_auth_session, Response, TpmHandle, TpmSession};
 
 /// Holds an open character device file for a TPM chip.
 struct TpmChip(File);
@@ -76,7 +76,7 @@ fn main() {
     let cli = Cli::parse();
     match &cli.command {
         Commands::TpmRc { rc } => {
-            println!("{} {rc:#010x}", TpmRc::from(*rc));
+            println!("{} {rc:#010x}", Response::from(*rc));
         }
         Commands::Objects {
             transient,
