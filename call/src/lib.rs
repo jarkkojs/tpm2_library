@@ -349,7 +349,7 @@ pub const RC_WARN: u32 = 0x0900;
 /// TPM 2.0 Structures specification.
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u32)]
-pub enum Response {
+pub enum ResponseCode {
     Success = 0x0000,
     BadTag = 0x001E,
     Initialize = RC_VER1,
@@ -450,12 +450,12 @@ pub enum Response {
     NotUsed = RC_WARN + 0x07F,
 }
 
-impl From<u32> for Response {
+impl From<u32> for ResponseCode {
     /// On success, parse `RsponseCode`.
-    /// On failure, Return `TpmRc::NotUsed` (`TPM_RC_NOT_USED`) for any
+    /// On failure, Return `ResponseCode::NotUsed` (`TPM_RC_NOT_USED`) for any
     /// invald response code, as TPM chip should never return that back to the
     /// caller in any legit use case.
-    fn from(value: u32) -> Response {
+    fn from(value: u32) -> ResponseCode {
         Self::from_repr(if value & RC_FMT1 != 0 {
             value & (0x3F + RC_FMT1)
         } else if value & RC_WARN != 0 {
@@ -466,11 +466,11 @@ impl From<u32> for Response {
             // RC_VER0
             value & 0x7F
         })
-        .unwrap_or(Response::NotUsed)
+        .unwrap_or(ResponseCode::NotUsed)
     }
 }
 
-impl fmt::Display for Response {
+impl fmt::Display for ResponseCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Success => write!(f, "TPM_RC_SUCCESS"),
@@ -741,6 +741,42 @@ bitflags! {
     }
 }
 
+pub struct Response {
+    pub tag: Option<TpmTag>,
+    pub size: u32,
+    pub rc: ResponseCode,
+    pub parameters: Vec<u8>,
+}
+
+impl Response {
+    fn read<T>(file: &mut T) -> Result<Self, Error>
+    where
+        T: Read + Write,
+    {
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf).or(Err(Error::InvalidRead))?;
+
+        // In order to do any further validation, TPM header must fit:
+        if buf.len() < 10 {
+            return Err(Error::InvalidData);
+        }
+
+        let size = u32::from_be_bytes([buf[2], buf[3], buf[4], buf[5]]);
+        if size as usize != buf.len() {
+            return Err(Error::InvalidData);
+        }
+
+        buf.drain(..10);
+
+        Ok(Self {
+            tag: TpmTag::from_repr(u16::from_be_bytes([buf[0], buf[1]])),
+            size,
+            rc: ResponseCode::from(u32::from_be_bytes([buf[6], buf[7], buf[8], buf[9]])),
+            parameters: buf,
+        })
+    }
+}
+
 /// Status for `get_capability()`
 #[derive(Debug, strum_macros::Display, PartialEq)]
 pub enum Error {
@@ -770,34 +806,29 @@ pub fn get_capability<T>(
 where
     T: Read + Write,
 {
-    let mut buf = vec![];
-    buf.extend((TpmTag::NoSessions as u16).to_be_bytes());
-    buf.extend((22_u32).to_be_bytes());
-    buf.extend((Command::GetCapability as u32).to_be_bytes());
-    buf.extend((TpmCap::Handles as u32).to_be_bytes());
-    buf.extend(property.to_be_bytes());
-    buf.extend(property_count.to_be_bytes());
-    file.write_all(&buf).or(Err(Error::InvalidWrite))?;
-    let mut buf = Vec::new();
-    file.read_to_end(&mut buf).or(Err(Error::InvalidRead))?;
+    let mut cmd = vec![];
+    cmd.extend((TpmTag::NoSessions as u16).to_be_bytes());
+    cmd.extend((22_u32).to_be_bytes());
+    cmd.extend((Command::GetCapability as u32).to_be_bytes());
+    cmd.extend((TpmCap::Handles as u32).to_be_bytes());
+    cmd.extend(property.to_be_bytes());
+    cmd.extend(property_count.to_be_bytes());
+    file.write_all(&cmd).or(Err(Error::InvalidWrite))?;
 
-    // Size of the response must be 19 + n * 4, where n is the number of handles
+    let response = Response::read(file)?;
+    let parameters = response.parameters;
+
+    // Size of the response must be 9 + n * 4, where n is the number of handles
     // returned.
-    if buf.len() < 19 || ((buf.len() - 19) & 0x03) != 0 {
-        return Err(Error::InvalidData);
-    }
-
-    // Check that the response header contains matching size with the total size
-    // of the received data.
-    let response_size: usize = u32::from_be_bytes([buf[2], buf[3], buf[4], buf[5]]) as usize;
-    if response_size != buf.len() {
+    if parameters.len() < 9 || ((parameters.len() - 9) & 0x03) != 0 {
         return Err(Error::InvalidData);
     }
 
     // Check that the encoded count of handles matches the expected count, given
     // the response size.
-    let handles_count = u32::from_be_bytes([buf[15], buf[16], buf[17], buf[18]]) as usize;
-    if handles_count != ((buf.len() - 19) >> 2) {
+    let handles_count =
+        u32::from_be_bytes([parameters[5], parameters[6], parameters[7], parameters[8]]) as usize;
+    if handles_count != ((parameters.len() - 9) >> 2) {
         return Err(Error::InvalidData);
     }
 
@@ -807,8 +838,13 @@ where
 
     let mut handles = vec![];
     for i in 0..handles_count {
-        let j: usize = i + 19;
-        let handle = u32::from_be_bytes([buf[j], buf[j + 1], buf[j + 2], buf[j + 3]]);
+        let j: usize = i + 9;
+        let handle = u32::from_be_bytes([
+            parameters[j],
+            parameters[j + 1],
+            parameters[j + 2],
+            parameters[j + 3],
+        ]);
         handles.push(handle);
     }
 
