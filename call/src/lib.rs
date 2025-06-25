@@ -578,7 +578,7 @@ impl fmt::Display for ResponseCode {
 /// `TPM_ST`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u16)]
-pub enum TpmTag {
+pub enum Tag {
     /// `TPM_ST_RSP_COMMAND`
     RspCommand = 0x00C4,
     /// `TPM_ST_NULL`
@@ -742,7 +742,7 @@ bitflags! {
 }
 
 pub struct Response {
-    pub tag: Option<TpmTag>,
+    pub tag: Option<Tag>,
     pub size: u32,
     pub rc: ResponseCode,
     pub parameters: Vec<u8>,
@@ -769,7 +769,7 @@ impl Response {
         buf.drain(..10);
 
         Ok(Self {
-            tag: TpmTag::from_repr(u16::from_be_bytes([buf[0], buf[1]])),
+            tag: Tag::from_repr(u16::from_be_bytes([buf[0], buf[1]])),
             size,
             rc: ResponseCode::from(u32::from_be_bytes([buf[6], buf[7], buf[8], buf[9]])),
             parameters: buf,
@@ -807,7 +807,7 @@ where
     T: Read + Write,
 {
     let mut cmd = vec![];
-    cmd.extend((TpmTag::NoSessions as u16).to_be_bytes());
+    cmd.extend((Tag::NoSessions as u16).to_be_bytes());
     cmd.extend((22_u32).to_be_bytes());
     cmd.extend((Command::GetCapability as u32).to_be_bytes());
     cmd.extend((TpmCap::Handles as u32).to_be_bytes());
@@ -867,7 +867,7 @@ where
     T: Read + Write,
 {
     let mut buf = vec![];
-    buf.extend((TpmTag::NoSessions as u16).to_be_bytes());
+    buf.extend((Tag::NoSessions as u16).to_be_bytes());
     buf.extend((43_u32).to_be_bytes());
     buf.extend((Command::StartAuthSession as u32).to_be_bytes());
     buf.extend((TpmHandle::Null as u32).to_be_bytes()); // bind
