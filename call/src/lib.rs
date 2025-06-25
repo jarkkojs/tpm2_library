@@ -9,10 +9,13 @@ use core::option::Option;
 use std::io::{Read, Write};
 use strum_macros::FromRepr;
 
-/// `TPM_ALG_ID`
+/// Enumeration of the `TPM_ALG_ID` values.
+///
+/// The possible values for `TPM_ALG_ID` are described in the section 6.3 of
+/// the TPM 2.0 Structures specification.
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u16)]
-pub enum TpmAlg {
+pub enum Algorithm {
     /// `TPM_ALG_ERROR`
     Error = 0x0000,
     /// `TPM_ALG_RSA`
@@ -833,8 +836,8 @@ where
     buf.extend(nonce_caller);
     buf.extend((0_u16).to_be_bytes());
     buf.extend((session_type as u8).to_be_bytes());
-    buf.extend((TpmAlg::Null as u16).to_be_bytes());
-    buf.extend((TpmAlg::Sha256 as u16).to_be_bytes());
+    buf.extend((Algorithm::Null as u16).to_be_bytes());
+    buf.extend((Algorithm::Sha256 as u16).to_be_bytes());
     file.write_all(&buf).or(Err(Error::InvalidWrite))?;
 
     let mut buf = Vec::new();
