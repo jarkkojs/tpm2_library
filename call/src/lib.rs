@@ -661,7 +661,7 @@ pub enum Capability {
 /// `TPM_HT`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u8)]
-pub enum TpmClass {
+pub enum Class {
     /// `TPM_HT_PCR`
     Pcr = 0x00,
     /// `TPM_HT_NV_INDEX`
@@ -681,7 +681,7 @@ pub enum TpmClass {
 /// `TPM_HT`
 #[derive(FromRepr, Debug, PartialEq)]
 #[repr(u32)]
-pub enum TpmHandle {
+pub enum Handle {
     /// `TPM_RH_FIRST`
     NotUsed = 0x4000_0000,
     /// `TPM_RH_OWNER`
@@ -712,7 +712,7 @@ pub enum TpmHandle {
 
 bitflags! {
     /// `TPMA_OBJECT`
-    pub struct TpmObject : u32 {
+    pub struct ObjectAttributes : u32 {
         /// Not used
         const NotUsed = 0x0000_0001;
         /// Hierarchy is immutable
