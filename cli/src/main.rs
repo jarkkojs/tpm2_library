@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
@@ -11,7 +11,7 @@ use std::{
     os::unix::fs::FileTypeExt,
     path::Path,
 };
-use tpm2_call::{get_capability, start_auth_session, ResponseCode, TpmHandle, Session};
+use tpm2_call::{get_capability, start_auth_session, ResponseCode, Session, TpmHandle};
 
 /// Holds an open character device file for a TPM chip.
 struct TpmChip(File);

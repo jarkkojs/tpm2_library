@@ -2,7 +2,7 @@
 name = "tpm2_cli"
 description = "TPM 2.0 command-line interface"
 version = "0.4.1"
-license = "MIT"
+license = "GPL-3.0-or-later"
 homepage = "https://codeberg.org/jarkko/tpm2_library.git"
 repository = "https://codeberg.org/jarkko/tpm2_library.git.git"
 edition = "2021"
