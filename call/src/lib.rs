@@ -756,23 +756,25 @@ impl Response {
         let mut buf = Vec::new();
         file.read_to_end(&mut buf).or(Err(Error::InvalidRead))?;
 
-        // In order to do any further validation, TPM header must fit:
         if buf.len() < 10 {
             return Err(Error::InvalidData);
         }
 
+        let tag_raw = u16::from_be_bytes([buf[0], buf[1]]);
         let size = u32::from_be_bytes([buf[2], buf[3], buf[4], buf[5]]);
+        let rc_raw = u32::from_be_bytes([buf[6], buf[7], buf[8], buf[9]]);
+
         if size as usize != buf.len() {
             return Err(Error::InvalidData);
         }
 
-        buf.drain(..10);
+        let parameters = buf[10..].to_vec();
 
         Ok(Self {
-            tag: Tag::from_repr(u16::from_be_bytes([buf[0], buf[1]])),
+            tag: Tag::from_repr(tag_raw),
             size,
-            rc: ResponseCode::from(u32::from_be_bytes([buf[6], buf[7], buf[8], buf[9]])),
-            parameters: buf,
+            rc: ResponseCode::from(rc_raw),
+            parameters,
         })
     }
 }
