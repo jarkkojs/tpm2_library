@@ -288,6 +288,7 @@ dependencies = [
  "clap-num",
  "env_logger",
  "log",
+ "strum_macros",
  "tpm2_call",
 ]
 

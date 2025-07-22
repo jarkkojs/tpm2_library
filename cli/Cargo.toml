@@ -10,11 +10,12 @@ rust-version = "1.78"
 readme = "../README.md"
 
 [dependencies]
-tpm2_call = { path = "../call", version = "0.4.1" }
-clap = { version = "4.0", features = ["derive"] }
 clap-num = "1.1.1"
-log = "0.4.21"
+clap = { version = "4.0", features = ["derive"] }
 env_logger = "0.11.3"
+log = "0.4.21"
+strum_macros = "0.26.4"
+tpm2_call = { path = "../call", version = "0.4.1" }
 
 [[bin]]
 name = "tpm2-cli"

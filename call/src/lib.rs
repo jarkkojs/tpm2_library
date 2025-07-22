@@ -6,7 +6,6 @@ use bitflags::bitflags;
 use core::convert::From;
 use core::fmt;
 use core::option::Option;
-use std::io::{Read, Write};
 use strum_macros::FromRepr;
 
 /// Enumeration of the `TPM_ALG_ID` values.
@@ -122,7 +121,7 @@ pub enum Command {
     /// `TPM_CC_HierarchyChangeAuth`
     HierarchyChangeAuth = 0x0000_0129,
     /// `TPM_CC_NV_DefineSpace`
-    NvDefineSpace = 0x0000_00130,
+    NvDefineSpace = 0x0000_0130,
     /// `TPM_CC_CreatePrimary`
     CreatePrimary = 0x0000_0131,
     /// `TPM_CC_NV_GlobalWriteLock`
@@ -746,149 +745,4 @@ pub struct Response {
     pub size: u32,
     pub rc: ResponseCode,
     pub parameters: Vec<u8>,
-}
-
-impl Response {
-    fn read<T>(file: &mut T) -> Result<Self, Error>
-    where
-        T: Read + Write,
-    {
-        let mut buf = Vec::new();
-        file.read_to_end(&mut buf).or(Err(Error::InvalidRead))?;
-
-        if buf.len() < 10 {
-            return Err(Error::InvalidData);
-        }
-
-        let tag_raw = u16::from_be_bytes([buf[0], buf[1]]);
-        let size = u32::from_be_bytes([buf[2], buf[3], buf[4], buf[5]]);
-        let rc_raw = u32::from_be_bytes([buf[6], buf[7], buf[8], buf[9]]);
-
-        if size as usize != buf.len() {
-            return Err(Error::InvalidData);
-        }
-
-        let parameters = buf[10..].to_vec();
-
-        Ok(Self {
-            tag: Tag::from_repr(tag_raw),
-            size,
-            rc: ResponseCode::from(rc_raw),
-            parameters,
-        })
-    }
-}
-
-/// Status for `get_capability()`
-#[derive(Debug, strum_macros::Display, PartialEq)]
-pub enum Error {
-    /// Invalid data
-    InvalidData,
-    /// Invalid read
-    InvalidRead,
-    /// Invalid write
-    InvalidWrite,
-}
-
-/// Authenticated session nonce size
-pub const NONCE_SIZE: u16 = 16;
-
-/// A wrapper for `TPM2_GetCapability` command
-///
-/// # Errors
-///
-/// * `Error::InvalidData`: data is corrupted
-/// * `Error::InvalidRead`: read failed
-/// * `Error::InvalidWrite`: write failed
-pub fn get_capability<T>(
-    file: &mut T,
-    property: u32,
-    property_count: u32,
-) -> Result<Vec<u32>, Error>
-where
-    T: Read + Write,
-{
-    let mut cmd = vec![];
-    cmd.extend((Tag::NoSessions as u16).to_be_bytes());
-    cmd.extend((22_u32).to_be_bytes());
-    cmd.extend((Command::GetCapability as u32).to_be_bytes());
-    cmd.extend((Capability::Handles as u32).to_be_bytes());
-    cmd.extend(property.to_be_bytes());
-    cmd.extend(property_count.to_be_bytes());
-    file.write_all(&cmd).or(Err(Error::InvalidWrite))?;
-
-    let response = Response::read(file)?;
-    let parameters = response.parameters;
-
-    // Size of the response must be 9 + n * 4, where n is the number of handles
-    // returned.
-    if parameters.len() < 9 || ((parameters.len() - 9) & 0x03) != 0 {
-        return Err(Error::InvalidData);
-    }
-
-    // Check that the encoded count of handles matches the expected count, given
-    // the response size.
-    let handles_count =
-        u32::from_be_bytes([parameters[5], parameters[6], parameters[7], parameters[8]]) as usize;
-    if handles_count != ((parameters.len() - 9) >> 2) {
-        return Err(Error::InvalidData);
-    }
-
-    if handles_count > property_count as usize {
-        return Err(Error::InvalidData);
-    }
-
-    let mut handles = vec![];
-    for i in 0..handles_count {
-        let j: usize = 9 + i * 4;
-        let handle = u32::from_be_bytes([
-            parameters[j],
-            parameters[j + 1],
-            parameters[j + 2],
-            parameters[j + 3],
-        ]);
-        handles.push(handle);
-    }
-
-    Ok(handles)
-}
-
-/// A wrapper for `TPM2_StartAuthSession` command
-///
-/// # Errors
-///
-/// * `Error::InvalidData`: data is corrupted
-/// * `Error::InvalidRead`: read failed
-/// * `Error::InvalidWrite`: write failed
-pub fn start_auth_session<T>(
-    file: &mut T,
-    session_type: Session,
-    nonce_caller: &[u8; NONCE_SIZE as usize],
-) -> Result<[u8; NONCE_SIZE as usize], Error>
-where
-    T: Read + Write,
-{
-    let mut buf = vec![];
-    buf.extend((Tag::NoSessions as u16).to_be_bytes());
-    buf.extend((43_u32).to_be_bytes());
-    buf.extend((Command::StartAuthSession as u32).to_be_bytes());
-    buf.extend((TpmHandle::Null as u32).to_be_bytes()); // bind
-    buf.extend((TpmHandle::Null as u32).to_be_bytes()); // tpmKey
-    buf.extend(NONCE_SIZE.to_be_bytes());
-    buf.extend(nonce_caller);
-    buf.extend((0_u16).to_be_bytes());
-    buf.extend((session_type as u8).to_be_bytes());
-    buf.extend((Algorithm::Null as u16).to_be_bytes());
-    buf.extend((Algorithm::Sha256 as u16).to_be_bytes());
-    file.write_all(&buf).or(Err(Error::InvalidWrite))?;
-
-    let mut buf = Vec::new();
-    file.read_to_end(&mut buf).or(Err(Error::InvalidRead))?;
-    if buf.len() != 32 {
-        return Err(Error::InvalidData);
-    }
-
-    let mut nonce_tpm = [0; 16];
-    nonce_tpm.clone_from_slice(&buf[16..32]);
-    Ok(nonce_tpm)
 }
