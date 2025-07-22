@@ -740,6 +740,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub struct Response {
     pub tag: Option<Tag>,
     pub size: u32,
