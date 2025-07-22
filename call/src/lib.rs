@@ -840,7 +840,7 @@ where
 
     let mut handles = vec![];
     for i in 0..handles_count {
-        let j: usize = i + 9;
+        let j: usize = 9 + i * 4;
         let handle = u32::from_be_bytes([
             parameters[j],
             parameters[j + 1],
