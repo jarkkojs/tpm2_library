@@ -11,7 +11,7 @@ use std::{
     os::unix::fs::FileTypeExt,
     path::Path,
 };
-use tpm2_call::{Algorithm, Capability, Command, Response, ResponseCode, Session, Tag, TpmHandle};
+use tpm2_call::{Algorithm, Capability, Command, Response, ResponseCode, Session, Tag, Handle};
 
 /// Status for TPM command execution.
 #[derive(Debug, strum_macros::Display, PartialEq)]
@@ -115,8 +115,8 @@ where
     buf.extend((Tag::NoSessions as u16).to_be_bytes());
     buf.extend((43_u32).to_be_bytes());
     buf.extend((Command::StartAuthSession as u32).to_be_bytes());
-    buf.extend((TpmHandle::Null as u32).to_be_bytes()); // bind
-    buf.extend((TpmHandle::Null as u32).to_be_bytes()); // tpmKey
+    buf.extend((Handle::Null as u32).to_be_bytes()); // bind
+    buf.extend((Handle::Null as u32).to_be_bytes()); // tpmKey
     buf.extend(NONCE_SIZE.to_be_bytes());
     buf.extend(nonce_caller);
     buf.extend((0_u16).to_be_bytes());
@@ -206,7 +206,7 @@ fn main() {
                 std::process::exit(1);
             });
             if *transient {
-                let handles = get_capability(&mut chip.0, TpmHandle::Transient as u32, MAX_HANDLES)
+                let handles = get_capability(&mut chip.0, Handle::Transient as u32, MAX_HANDLES)
                     .unwrap_or_else(|err| {
                         error!("{err:?}");
                         std::process::exit(1);
@@ -217,7 +217,7 @@ fn main() {
             }
             if *persistent {
                 let handles =
-                    get_capability(&mut chip.0, TpmHandle::Persistent as u32, MAX_HANDLES)
+                    get_capability(&mut chip.0, Handle::Persistent as u32, MAX_HANDLES)
                         .unwrap_or_else(|err| {
                             error!("{err:?}");
                             std::process::exit(1);
