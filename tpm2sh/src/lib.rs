@@ -32,6 +32,7 @@ pub mod device;
 pub mod error;
 pub mod formats;
 pub mod pretty_printer;
+pub mod tpm_stack;
 
 pub use self::arg_parser::parse_cli;
 pub use self::command_io::CommandIo;
@@ -39,6 +40,7 @@ pub use self::crypto::*;
 pub use self::device::*;
 pub use self::error::TpmError;
 pub use self::pretty_printer::PrettyTrace;
+pub use self::tpm_stack::TpmStack;
 
 #[derive(Parser)]
 #[grammar = "command/pcr_selection.pest"]
