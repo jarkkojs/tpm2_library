@@ -1,74 +1,77 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2025 Opinsys Oy
 
-use tpm2_protocol::{TpmBuild, TpmErrorKind, TpmParse, TpmResult, TpmWriter, TPM_MAX_COMMAND_SIZE};
+use tpm2_protocol::{TpmBuild, TpmParse, TpmResult, TpmWriter, TPM_MAX_COMMAND_SIZE};
 
-/// A stack of TPM objects
-#[derive(Default)]
+/// A stack of TPM objects, represented as a raw byte buffer.
+#[derive(Default, Debug, Clone)]
 pub struct TpmStack {
-    stack: Vec<Vec<u8>>,
+    stack: Vec<u8>,
 }
 
 impl TpmStack {
-    /// Creates a new empty `TpmStack`.
-    #[must_use]
-    pub fn new() -> Self {
-        TpmStack { stack: Vec::new() }
+    /// Creates a `TpmStack` directly from a vector of bytes.
+    pub fn from_vec(bytes: Vec<u8>) -> Self {
+        Self { stack: bytes }
     }
 
-    /// Pushes a TPM object onto the stack.
+    /// Validates a byte slice and creates a `TpmStack` from it.
+    ///
+    /// This function validates that the byte slice consists of a valid sequence
+    /// of parsable objects of type `T`.
     ///
     /// # Errors
     ///
-    /// Returns a `TpmError` on failure.
-    pub fn push<T: TpmBuild>(&mut self, obj: &T) -> TpmResult<()> {
+    /// Returns a `TpmError` if parsing fails at any point in the sequence.
+    pub fn from_bytes<T: for<'a> TpmParse<'a>>(bytes: &[u8]) -> TpmResult<Self> {
+        let mut tail = bytes;
+        while !tail.is_empty() {
+            let (_, next_tail) = T::parse(tail)?;
+            tail = next_tail;
+        }
+
+        Ok(TpmStack {
+            stack: bytes.to_vec(),
+        })
+    }
+
+    /// Returns the stack as a byte slice.
+    #[must_use]
+    pub fn to_bytes(&self) -> &[u8] {
+        &self.stack
+    }
+
+    /// Pushes a TPM object onto the top of the stack.
+    ///
+    /// The object is serialized, and its byte representation is prepended to the stack.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TpmError` on a serialization failure.
+    pub fn push<T: TpmBuild>(&mut self, object: &T) -> TpmResult<()> {
         let mut buffer = [0u8; TPM_MAX_COMMAND_SIZE];
-        let mut tpm_writer = TpmWriter::new(&mut buffer);
+        let mut writer = TpmWriter::new(&mut buffer);
+        object.build(&mut writer)?;
 
-        obj.build(&mut tpm_writer)?;
+        let writer_len = writer.len();
+        let new_bytes = &buffer[..writer_len];
 
-        let written_len = tpm_writer.len();
-        let written_bytes = &buffer[..written_len];
-        self.stack.push(written_bytes.to_vec());
-
+        self.stack.splice(0..0, new_bytes.iter().cloned());
         Ok(())
     }
 
-    /// Pops a TPM object from the stack.
+    /// Pops a TPM object from the top of the stack.
+    ///
+    /// The raw bytes are parsed into an object of type `T`, and the consumed
+    /// bytes are removed from the stack.
     ///
     /// # Errors
     ///
-    /// Returns a `TpmError` on failure.
+    /// Returns a `TpmError` on a parsing failure.
     pub fn pop<T: for<'a> TpmParse<'a>>(&mut self) -> TpmResult<T> {
-        let bytes = self.stack.pop().ok_or(TpmErrorKind::Boundary)?;
+        let (object, next_stack) = T::parse(&self.stack)?;
 
-        let (obj, remainder) = T::parse(&bytes)?;
-
-        if !remainder.is_empty() {
-            return Err(TpmErrorKind::TrailingData);
-        }
-
-        Ok(obj)
-    }
-}
-
-pub struct TpmStackIterator {
-    stack: Vec<Vec<u8>>,
-}
-
-impl Iterator for TpmStackIterator {
-    type Item = Vec<u8>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.stack.pop()
-    }
-}
-
-impl IntoIterator for TpmStack {
-    type Item = Vec<u8>;
-    type IntoIter = TpmStackIterator;
-
-    fn into_iter(self) -> Self::IntoIter {
-        TpmStackIterator { stack: self.stack }
+        self.stack = next_stack.to_vec();
+        Ok(object)
     }
 }
